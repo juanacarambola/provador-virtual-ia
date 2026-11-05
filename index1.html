@@ -1,4 +1,3 @@
-HTML
 <!DOCTYPE html>
 <html lang="pt-BR">
 <head>
@@ -6,21 +5,17 @@ HTML
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>✨ Provador Virtual Inteligente</title>
     <!-- Tailwind CSS para um design limpo e moderno -->
-    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdn.tailwindcss.com"></script&gt;
+    <!-- Gradio Client para conectar facilmente com modelos públicos de IA -->
+    <script type="module" src="https://gradio.s3-us-west-2.amazonaws.com/4.16.0/gradio.js"></script&gt;
 </head>
 <body class="bg-slate-50 min-h-screen flex flex-col items-center justify-center p-4">
 
     <div class="max-w-xl w-full bg-white p-8 rounded-2xl shadow-xl border border-slate-100">
         <h1 class="text-2xl font-bold text-center text-slate-800 mb-2">🧥 Provador Virtual com IA</h1>
-        <p class="text-sm text-center text-slate-500 mb-6">Envie sua foto e a peça desejada para ver a montagem em segundos.</p>
-        
+        <p class="text-sm text-center text-slate-500 mb-6">Envie sua foto de corpo inteiro e a peça de roupa para realizar a montagem.</p>
+       
         <div class="space-y-5">
-            <!-- Configuração da URL da API do Colab -->
-            <div>
-                <label class="block text-xs font-semibold text-indigo-600 mb-1">🔗 Link da API (Gerado no Colab):</label>
-                <input type="text" id="apiUrl" placeholder="Cole aqui o link do Gradio (ex: https://xxxx.gradio.live)" class="w-full border border-indigo-200 bg-indigo-50/30 p-2 rounded-lg text-xs text-slate-700">
-            </div>
-
             <!-- Upload da Pessoa -->
             <div>
                 <label class="block text-sm font-semibold text-slate-700 mb-1">1. Sua Foto de Corpo Inteiro 📸</label>
@@ -29,19 +24,19 @@ HTML
 
             <!-- Upload da Roupa -->
             <div>
-                <label class="block text-sm font-semibold text-slate-700 mb-1">2. Foto da Roupa 👕</label>
+                <label class="block text-sm font-semibold text-slate-700 mb-1">2. Foto da Roupa (Isolada) 👕</label>
                 <input type="file" id="garmentFile" accept="image/*" class="w-full border border-slate-300 p-2.5 rounded-lg text-sm bg-slate-50">
             </div>
 
             <!-- Botão de Ação -->
-            <button onclick="handleTryOn()" class="w-full bg-indigo-600 text-white font-semibold py-3 rounded-lg hover:bg-indigo-700 transition shadow-md">
+            <button onclick="handleTryOn()" id="submitBtn" class="w-full bg-indigo-600 text-white font-semibold py-3 rounded-lg hover:bg-indigo-700 transition shadow-md">
                 Gerar Provador Virtual 🚀
             </button>
         </div>
 
         <!-- Indicador de Carregamento -->
         <div id="loading" class="hidden text-center mt-6 text-indigo-600 font-medium animate-pulse">
-            Processando a montagem com IA... Aguarde ⏳
+            processando a montagem com IA... Isso pode levar alguns segundos ⏳
         </div>
 
         <!-- Área de Exibição do Resultado -->
@@ -51,18 +46,16 @@ HTML
         </div>
     </div>
 
-    <script>
-        async function handleTryOn() {
-            const apiUrl = document.getElementById('apiUrl').value.trim();
+    <script type="module">
+        import { client } from "https://cdn.jsdelivr.net/npm/@gradio/client@0.1.4/dist/index.min.js&quot;;
+
+        window.handleTryOn = async function() {
             const personInput = document.getElementById('personFile').files[0];
             const garmentInput = document.getElementById('garmentFile').files[0];
             const loading = document.getElementById('loading');
             const resultContainer = document.getElementById('resultContainer');
-            
-            if (!apiUrl) {
-                alert('⚠️ Por favor, cole o link da API gerado no Google Colab!');
-                return;
-            }
+            const submitBtn = document.getElementById('submitBtn');
+           
             if (!personInput || !garmentInput) {
                 alert('⚠️ Por favor, envie ambas as imagens!');
                 return;
@@ -70,37 +63,36 @@ HTML
 
             loading.classList.remove('hidden');
             resultContainer.classList.add('hidden');
+            submitBtn.disabled = true;
 
             try {
-                // Montando o envio dos arquivos para a API do Gradio via FormData
-                const formData = new FormData();
-                formData.append('data', personInput);
-                formData.append('data', garmentInput);
+                // Conectando ao espaço público otimizado de IDM-VTON no Hugging Face
+                const app = await client("yisol/IDM-VTON");
+               
+                // Enviando as imagens para a API pública de IA
+                const result = await app.predict("/tryon", [
+                    { image: personInput, mask: null }, // Imagem da pessoa
+                    garmentInput,                        // Imagem da roupa
+                    "default description",
+                    true,
+                    true,
+                    30,
+                    2.5
+                ]);
 
-                // Requisição assíncrona para o endpoint da API
-                const response = await fetch(`${apiUrl}/api/predict`, {
-                    method: 'POST',
-                    body: formData
-                });
-
-                const result = await response.json();
-                
                 if (result && result.data && result.data[0]) {
-                    // Exibindo a imagem gerada pela IA
-                    document.getElementById('outputImage').src = result.data[0].url || URL.createObjectURL(personInput);
+                    // Exibindo a imagem gerada pela IA real
+                    document.getElementById('outputImage').src = result.data[0].url;
                     resultContainer.classList.remove('hidden');
                 } else {
-                    throw new Error('Resposta inválida da API.');
+                    throw new Error('Não foi possível processar a imagem.');
                 }
             } catch (error) {
                 console.error(error);
-                // Fallback visual para demonstração caso a API demore a responder
-                setTimeout(() => {
-                    document.getElementById('outputImage').src = URL.createObjectURL(personInput);
-                    resultContainer.classList.remove('hidden');
-                }, 2000);
+                alert('Ocorreu um erro ao processar na IA. Verifique se as imagens estão no formato correto (fundo limpo para a roupa).');
             } finally {
                 loading.classList.add('hidden');
+                submitBtn.disabled = false;
             }
         }
     </script>
